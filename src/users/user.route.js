@@ -49,16 +49,19 @@ router.post("/register", async (req, res) => {
 
 // POST /api/auth/login - Đăng nhập bằng email hoặc username
 router.post("/login", async (req, res) => {
-    const { username, password } = req.body;
+    const { identifier, password } = req.body;  // identifier = email hoặc username
 
-    if (!username || !password) {
-        return res.status(400).json({ message: "Please provide username/email and password" });
+    if (!identifier || !password) {
+        return res.status(400).json({ message: "Please provide email/username and password" });
     }
 
     try {
-        // Tìm user bằng username hoặc email
+        // Tìm user bằng username HOẶC email
         const user = await User.findOne({
-            $or: [{ username }, { email: username }]
+            $or: [
+                { username: identifier },
+                { email: identifier }
+            ]
         });
 
         if (!user) {
