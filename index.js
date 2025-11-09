@@ -29,7 +29,7 @@ app.use("/api/auth", userRoutes)
 app.use("/api/admin", adminRoutes)
 
 async function main() {
-  await mongoose.connect(process.env.DB_URL);
+  await mongoose.connect("mongodb+srv://bookuser:U8xdJsXMSxePokrL@book-store-cluster.ck1zkmj.mongodb.net/?appName=book-store-cluster");
   app.use("/", (req, res) => {
     res.send("Book Store Server is running!");
   });
