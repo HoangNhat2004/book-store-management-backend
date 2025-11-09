@@ -12,6 +12,7 @@ app.use(cors({
     origin: [
         'http://localhost:5173',
         'https://book-store-management-frontend.vercel.app',
+        'https://book-store-management-frontend-72u77ktpv.vercel.app/',
         'https://*.vercel.app'  // Hỗ trợ preview URLs
     ],
     credentials: true
