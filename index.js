@@ -9,13 +9,24 @@ require('dotenv').config()
 // middleware
 app.use(express.json());
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'https://book-store-management-frontend.vercel.app',
-        'https://*.vercel.app'  // Hỗ trợ preview URLs
-    ],
-    credentials: true
-}))
+    origin: function (origin, callback) {
+        // Cho phép tất cả Vercel domain
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'https://*.vercel.app',
+            'https://book-store-management-frontend.vercel.app'
+        ];
+        
+        if (!origin || allowedOrigins.some(allowed => origin.endsWith(allowed.split('*')[1]))) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // routes
 const bookRoutes = require('./src/books/book.route');
