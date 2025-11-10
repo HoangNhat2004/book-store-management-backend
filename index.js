@@ -3,7 +3,7 @@ const app = express();
 const cors = require("cors");
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30";
-const verifyAdminToken = require('./src/middlewares/verifyAdminToken');
+const verifyAdminToken = require('./src/middleware/verifyAdminToken');
 
 const mongoose = require("mongoose");
 const port = process.env.PORT || 5000;
