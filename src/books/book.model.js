@@ -28,6 +28,7 @@ const bookSchema = new mongoose.Schema({
     newPrice: {
         type: Number,
         required: true,
+        min: 0
     },
     createdAt: {
         type: Date,

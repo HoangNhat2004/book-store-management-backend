@@ -42,12 +42,9 @@ app.use("/api/books", bookRoutes)
 app.use("/api/orders", orderRoutes)
 app.use("/api/auth", userRoutes)
 app.use("/api/admin", adminRoutes)
-app.get('/api/admin-token', (req, res) => {
-  const token = jwt.sign(
-    { sub: 'admin123', name: 'Admin', admin: true },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+app.get('/api/admin-token', verifyAdminToken, (req, res) => {
+  // Chỉ admin mới lấy token mới
+  const token = jwt.sign({ admin: true }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token });
 });
 
