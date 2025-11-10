@@ -16,7 +16,7 @@ const getOrderByEmail = async (req, res) => {
   try {
     const { email } = req.params;
     const orders = await Order.find({ email })
-      .populate('productIds', 'title newPrice coverImage') // THÊM coverImage
+      .populate('productIds', 'title newPrice coverImage') // POPULATE CHO USER
       .sort({ createdAt: -1 });
     
     if (!orders || orders.length === 0) {
@@ -32,9 +32,7 @@ const getOrderByEmail = async (req, res) => {
 // THÊM: LẤY TẤT CẢ ĐƠN HÀNG (ADMIN)
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
-      .populate('productIds', 'title newPrice coverImage') // THÊM coverImage
-      .sort({ createdAt: -1 });
+    const orders = await Order.find().populate('productIds', 'title newPrice'); // POPULATE
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch orders" });
