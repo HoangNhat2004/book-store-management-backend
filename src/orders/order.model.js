@@ -1,11 +1,11 @@
-const mongoose =  require('mongoose');
+const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
     },
-    email:{
+    email: {
         type: String,
         required: true,
     },
@@ -22,22 +22,31 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    productIds:[
+    productIds: [
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Book',
             required: true,
         }
     ],
+    quantities: {
+        type: [Number],
+        default: []
+    },
     totalPrice: {
         type: Number,
         required: true,
         min: 0
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+        default: 'Pending'
     }
 }, {
     timestamps: true,
 })
 
-const Order =  mongoose.model('Order', orderSchema);
+const Order = mongoose.model('Order', orderSchema);
 
 module.exports = Order;
