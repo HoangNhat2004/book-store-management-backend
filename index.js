@@ -3,7 +3,6 @@ const app = express();
 const cors = require("cors");
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30";
-const verifyAdminToken = require('./src/middleware/verifyAdminToken');
 
 const mongoose = require("mongoose");
 const port = process.env.PORT || 5000;
@@ -43,9 +42,12 @@ app.use("/api/books", bookRoutes)
 app.use("/api/orders", orderRoutes)
 app.use("/api/auth", userRoutes)
 app.use("/api/admin", adminRoutes)
-app.get('/api/admin-token', verifyAdminToken, (req, res) => {
-  // Chỉ admin mới lấy token mới
-  const token = jwt.sign({ admin: true }, JWT_SECRET, { expiresIn: '7d' });
+app.get('/api/admin-token', (req, res) => {
+  const token = jwt.sign(
+    { sub: 'admin123', name: 'Admin', admin: true },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
   res.json({ token });
 });
 
