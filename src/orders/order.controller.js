@@ -1,40 +1,11 @@
 // backend/src/orders/order.controller.js
 const Order = require("./order.model");
-const Book = require("../books/book.model");
 
 const createAOrder = async (req, res) => {
   try {
-    // 2. Tách productIds và quantities khỏi req.body
-    const { productIds, quantities, ...otherData } = req.body;
-
-    // 3. Lấy thông tin đầy đủ của các sách từ DB
-    const books = await Book.find({ _id: { $in: productIds } });
-
-    // 4. Tạo Map để tra cứu sách nhanh
-    const bookMap = new Map(books.map(book => [book._id.toString(), book]));
-
-    // 5. Xây dựng mảng 'items' với dữ liệu đã sao chép
-    const items = productIds.map((id, index) => {
-        const book = bookMap.get(id);
-        if (!book) {
-            // Trường hợp sách không tìm thấy (mặc dù hiếm khi xảy ra nếu frontend làm đúng)
-            throw new Error(`Product with ID ${id} not found`);
-        }
-        return {
-            productId: id,
-            title: book.title,
-            price: book.newPrice, // <-- Quan trọng: Sao chép giá tại thời điểm mua
-            quantity: quantities[index] || 1
-        };
-    });
-
-    // 6. Tạo đơn hàng mới với mảng 'items' đã hoàn chỉnh
-    const newOrder = new Order({
-        ...otherData,
-        items: items, // <-- Gán mảng items mới
-        // productIds và quantities không còn được lưu ở cấp cao nhất
-    });
-
+    // Frontend (CheckoutPage.jsx) đã chuẩn bị payload
+    // khớp với Order Model, vì vậy chúng ta chỉ cần tạo và lưu.
+    const newOrder = new Order(req.body); 
     const savedOrder = await newOrder.save();
     res.status(201).json(savedOrder);
   } catch (error) {
