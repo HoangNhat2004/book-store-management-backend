@@ -62,8 +62,27 @@ router.get("/", async (req, res) => {
                     averageOrderValue: { $avg: "$totalPrice" } // Tính giá trị trung bình
                 }
             },
+            // --- THÊM BƯỚC $lookup NÀY ---
+            {
+                $lookup: {
+                    from: 'profiles', // Tên collection 'profiles' trong MongoDB
+                    localField: '_id', // Trường email từ bước $group ở trên
+                    foreignField: 'email', // Trường email trong collection 'profiles'
+                    as: 'userProfile' // Tên mảng kết quả
+                }
+            },
             { $sort: { averageOrderValue: -1 } }, // Sắp xếp giảm dần
-            { $limit: 8 } // Lấy 8 người dùng hàng đầu
+            { $limit: 8 }, // Lấy 8 người dùng hàng đầu
+            // --- THÊM BƯỚC $project ĐỂ LÀM SẠCH DỮ LIỆU ---
+            {
+                $project: {
+                    _id: 1, // Giữ lại email
+                    name: 1, // Giữ lại tên
+                    averageOrderValue: 1, // Giữ lại giá trị TB
+                    // Lấy photoURL từ mảng userProfile (nếu có)
+                    photoURL: { $arrayElemAt: ["$userProfile.photoURL", 0] }
+                }
+            }
         ]);
         // --- KẾT THÚC THÊM MỚI ---
 
