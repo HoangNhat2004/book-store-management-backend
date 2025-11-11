@@ -6,7 +6,6 @@ const router = express.Router();
 
 
 // --- BỘ LỌC ĐƠN HÀNG HỢP LỆ ---
-// Chỉ tính các đơn hàng có trường 'items' tồn tại và không phải là mảng rỗng
 const validOrderFilter = { items: { $exists: true, $ne: [] } };
 // --- KẾT THÚC BỘ LỌC ---
 
@@ -15,11 +14,9 @@ const validOrderFilter = { items: { $exists: true, $ne: [] } };
 router.get("/", async (req, res) => {
     try {
         // 1. Total number of orders
-        // SỬA: Thêm bộ lọc vào countDocuments
         const totalOrders = await Order.countDocuments(validOrderFilter);
 
-        // 2. Total sales (sum of all totalPrice from orders)
-        // SỬA: Thêm $match vào đầu pipeline
+        // 2. Total sales
         const totalSales = await Order.aggregate([
             { $match: validOrderFilter }, 
             {
@@ -30,7 +27,7 @@ router.get("/", async (req, res) => {
             }
         ]);
 
-        // 4. Trending books statistics: 
+        // 4. Trending books
         const trendingBooksCount = await Book.aggregate([
             { $match: { trending: true } },
             { $count: "trendingBooksCount" }
@@ -42,9 +39,9 @@ router.get("/", async (req, res) => {
         const totalBooks = await Book.countDocuments();
 
         // 6. Monthly sales
-        // SỬA: Thêm $match vào đầu pipeline
         const monthlySales = await Order.aggregate([
             { $match: validOrderFilter }, 
+            // ... (phần còn lại của monthlySales giữ nguyên)
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
@@ -55,13 +52,29 @@ router.get("/", async (req, res) => {
             { $sort: { _id: 1 } }  
         ]);
 
+        // --- 7. THÊM MỚI: TOP USERS BY AVERAGE ORDER ---
+        const topUsers = await Order.aggregate([
+            { $match: validOrderFilter },
+            {
+                $group: {
+                    _id: "$email", // Nhóm theo email khách hàng
+                    name: { $first: "$name" }, // Lấy tên từ đơn hàng đầu tiên
+                    averageOrderValue: { $avg: "$totalPrice" } // Tính giá trị trung bình
+                }
+            },
+            { $sort: { averageOrderValue: -1 } }, // Sắp xếp giảm dần
+            { $limit: 8 } // Lấy 8 người dùng hàng đầu
+        ]);
+        // --- KẾT THÚC THÊM MỚI ---
+
         // Result summary
         res.status(200).json({  
-            totalOrders, // Đã được lọc
-            totalSales: totalSales[0]?.totalSales || 0, // Đã được lọc
+            totalOrders,
+            totalSales: totalSales[0]?.totalSales || 0,
             trendingBooks,
             totalBooks,
-            monthlySales, // Đã được lọc
+            monthlySales,
+            topUsers: topUsers // <-- Gửi dữ liệu mới về frontend
         });
       
     } catch (error) {
