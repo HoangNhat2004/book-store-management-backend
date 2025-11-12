@@ -87,4 +87,36 @@ router.post("/login", async (req, res) => {
     }
 });
 
+// --- THÊM ROUTE MỚI CHO ADMIN LOGIN ---
+router.post("/admin-login", async (req, res) => {
+    const { username, password } = req.body;
+
+    // 1. Kiểm tra thông tin đăng nhập trên SERVER
+    // (Trong dự án thật, "admin" và "admin123" nên được lưu trong .env)
+    if (username !== "admin" || password !== "admin123") {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    // 2. Nếu đúng, tạo token admin
+    try {
+        const token = jwt.sign(
+            { id: 'admin_user', username: 'admin', role: 'admin', admin: true }, // 'admin: true' là quan trọng
+            JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.status(200).json({
+            message: "Admin login successful",
+            token,
+            user: {
+                username: 'admin',
+                role: 'admin'
+            }
+        });
+    } catch (error) {
+        console.error("Admin Login error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 module.exports = router;

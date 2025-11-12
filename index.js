@@ -42,15 +42,6 @@ app.use("/api/admin", adminRoutes)
 app.use("/api/payment", paymentRoutes) // <-- THÊM MỚI
 app.use("/api/profiles", profileRoutes)
 
-app.get('/api/admin-token', (req, res) => {
-  const token = jwt.sign(
-    { sub: 'admin123', name: 'Admin', admin: true },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-  res.json({ token });
-});
-
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://bookuser:U8xdJsXMSxePokrL@book-store-cluster.ck1zkmj.mongodb.net/?appName=book-store-cluster");
   app.use("/", (req, res) => {
