@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA TOKEN) ---
-const GHTK_TOKEN = "336lDaYNGTpQVfLavEmacVpq3ScskF05xxb07kO"; // <-- TOKEN ĐÚNG TỪ ẢNH "ĐÃ DUYỆT"
+const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- TOKEN ĐÚNG TỪ ẢNH "ĐÃ DUYỆT"
 const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
 // --- KẾT THÚC CẤU HÌNH ---
 
