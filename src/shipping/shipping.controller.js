@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA TOKEN) ---
-const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- TOKEN ĐÚNG TỪ ẢNH
+const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- TOKEN ĐÚNG TỪ ẢNH "ĐÃ DUYỆT"
 const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
 // --- KẾT THÚC CẤU HÌNH ---
 
@@ -11,7 +11,7 @@ const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
  * @param {number} weight - Cân nặng (gram)
  * @returns {number} Phí vận chuyển (VND)
  */
-async function getGHTKFee(address, weight = 500) { // Giả định 1 cuốn sách nặng 500g
+async function getGHTKFee(address, weight = 500) { 
     if (!GHTK_TOKEN) {
         console.warn("GHTK_TOKEN is not set. Returning 0 fee.");
         return 0; 
@@ -32,9 +32,12 @@ async function getGHTKFee(address, weight = 500) { // Giả định 1 cuốn sá
             headers: { 'Token': GHTK_TOKEN }
         });
 
+        // API GHTK trả phí trong { fee: { fee: 50000 } }
         if (response.data && response.data.fee && response.data.fee.fee) {
+            console.log("GHTK Fee received (VND):", response.data.fee.fee);
             return response.data.fee.fee; // Trả về phí (VND)
         }
+        console.warn("GHTK Response OK, but no fee found:", response.data);
         return 0; 
     } catch (error) {
         // Log lỗi thật từ GHTK
