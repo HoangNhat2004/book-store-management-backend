@@ -1,8 +1,8 @@
 const axios = require('axios');
 
-// --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA) ---
-const GHTK_TOKEN = process.env.GHTK_TOKEN || "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- Token "lDa" (từ ảnh cuối)
-const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee"; // <-- QUAY LẠI URL STAGING
+// --- THÔNG TIN CẤU HÌNH GHTK (TOKEN "ĐÃ DUYỆT") ---
+const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- Token "lGY"
+const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
 // --- KẾT THÚC CẤU HÌNH ---
 
 /**
@@ -25,14 +25,18 @@ async function getGHTKFee(address, weight = 500) {
     };
 
     try {
+        // --- DÒNG KIỂM TRA MỚI ---
+        console.log("--- GHTK TOKEN ĐANG DÙNG ---");
+        console.log(GHTK_TOKEN);
+        // --- KẾT THÚC DÒNG KIỂM TRA ---
+
         const response = await axios.post(GHTK_URL, payload, {
             headers: { 'Token': GHTK_TOKEN } 
         });
 
-        // API Staging trả phí trong { fee: { fee: 50000 } }
         if (response.data && response.data.fee && response.data.fee.fee) {
             console.log("GHTK Fee received (VND):", response.data.fee.fee);
-            return response.data.fee.fee; // Trả về phí (VND)
+            return response.data.fee.fee;
         }
         console.warn("GHTK Response OK, but no fee found:", response.data);
         return 0; 
@@ -50,7 +54,7 @@ exports.calculateFee = async (req, res) => {
     }
     
     const fee = await getGHTKFee(address, 500);
-    res.status(200).json({ shippingFee: fee }); // Trả về phí (VND)
+    res.status(200).json({ shippingFee: fee });
 };
 
 // Xuất hàm helper để Order Controller có thể dùng
