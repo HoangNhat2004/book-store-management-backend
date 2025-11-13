@@ -101,7 +101,13 @@ const createAOrder = async (req, res) => {
 const getOrderByEmail = async (req, res) => {
   try {
     const { email } = req.params;
-    const orders = await Order.find({ email })
+    const userEmail = req.user.email;
+    // --- LỚP BẢO VỆ MỚI ---
+    // So sánh email trong token VÀ email yêu cầu trên URL
+    if (email !== userEmail) {
+        return res.status(403).json({ message: "Forbidden: You can only access your own orders." });
+    }
+    const orders = await Order.find({ email }) // Tìm đơn hàng
       .sort({ createdAt: -1 });
     
     if (!orders || orders.length === 0) {

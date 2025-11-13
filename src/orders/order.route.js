@@ -7,13 +7,15 @@ const {
 const verifyAdminToken = require('../middleware/verifyAdminToken');
 const Order = require('./order.model');
 
+const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
+
 const router = express.Router();
 
 // Tạo đơn
-router.post("/", createAOrder);
+router.post("/", verifyFirebaseToken, createAOrder);
 
 // Lấy theo email
-router.get("/email/:email", getOrderByEmail);
+router.get("/email/:email", verifyFirebaseToken, getOrderByEmail);
 
 // LẤY TẤT CẢ (ADMIN)
 router.get("/", verifyAdminToken, getAllOrders);
