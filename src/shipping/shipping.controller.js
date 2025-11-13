@@ -1,47 +1,42 @@
 const axios = require('axios');
 
-// --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA) ---
-const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- Token "lGY"
-const GHTK_URL = "https://services.ghtk.vn/services/shipment/fee"; // <-- 1. ĐỔI SANG URL PRODUCTION
-// --- KẾT THÚC CẤU HÌNH ---
+// --- CẤU HÌNH GHTK (ĐANG Ở CHẾ ĐỘ TEST TẠM THỜI) ---
+// const GHTK_TOKEN = "TOKEN_CUA_BAN"; 
+// const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
+
+// === GIẢI PHÁP TẠM THỜI (CHỜ GHTK HỖ TRỢ) ===
+// Đặt là 'true' để bỏ qua GHTK và dùng phí cố định
+const GHTK_TESTING_MODE = true; 
+const GHTK_TEST_FEE = 30000; // Phí giả định là 30,000 VND
+// ============================================
+
 
 /**
  * Hàm nội bộ để gọi GHTK và lấy phí
  */
 async function getGHTKFee(address, weight = 500) { 
+    
+    // --- LÔGIC TẠM THỜI ---
+    if (GHTK_TESTING_MODE) {
+        console.warn("GHTK_TESTING_MODE is ON. Returning test fee:", GHTK_TEST_FEE);
+        return GHTK_TEST_FEE;
+    }
+    // --- KẾT THÚC ---
+
+    /*
+    // (Logic thật - Tạm thời bị vô hiệu hóa)
+    const GHTK_TOKEN = process.env.GHTK_TOKEN; // (Hoặc token hardcode)
+    const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
+    
     if (!GHTK_TOKEN) {
         console.warn("GHTK_TOKEN is not set. Returning 0 fee.");
         return 0; 
     }
+    // ... (logic gọi axios thật)
+    */
 
-    const payload = {
-        "pick_province": "Thành phố Hồ Chí Minh", 
-        "pick_district": "Quận 1", 
-        "province": address.state || address.country, 
-        "district": address.city, 
-        "address": address.address || address.city,
-        "weight": weight,
-        "transport": "road" 
-    };
-
-    try {
-        // (Dòng console.log đã bị xóa để cho sạch)
-        const response = await axios.post(GHTK_URL, payload, {
-            headers: { 'Token': GHTK_TOKEN } 
-        });
-
-        // 2. SỬA LOGIC ĐỌC KẾT QUẢ
-        // (API Production trả về { fee: 50000 } )
-        if (response.data && response.data.fee) {
-            console.log("GHTK Fee received (VND):", response.data.fee);
-            return response.data.fee; // Trả về phí (VND)
-        }
-        console.warn("GHTK Response OK, but no fee found:", response.data);
-        return 0; 
-    } catch (error) {
-        console.error("GHTK API Error:", error.response?.data || error.message);
-        return 0; 
-    }
+    // Trả về 0 nếu không ở chế độ test
+    return 0;
 }
 
 // API Endpoint (được gọi bởi frontend)
