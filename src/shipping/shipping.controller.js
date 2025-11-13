@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA) ---
-const GHTK_TOKEN = "336lDaYNGTpQVfLavEmacVpq3ScskF05xxb07kO"; // <-- Token "lDa" (từ ảnh cuối)
+const GHTK_TOKEN = process.env.GHTK_TOKEN || "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- Token "lDa" (từ ảnh cuối)
 const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee"; // <-- QUAY LẠI URL STAGING
 // --- KẾT THÚC CẤU HÌNH ---
 
