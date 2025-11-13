@@ -34,6 +34,7 @@ const userRoutes =  require("./src/users/user.route")
 const adminRoutes = require("./src/stats/admin.stats")
 const paymentRoutes = require("./src/payment/payment.route") // <-- THÊM MỚI
 const profileRoutes = require("./src/profiles/profile.route")
+const shippingRoutes = require("./src/shipping/shipping.route")
 
 app.use("/api/books", bookRoutes)
 app.use("/api/orders", orderRoutes)
@@ -41,6 +42,7 @@ app.use("/api/auth", userRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/payment", paymentRoutes) // <-- THÊM MỚI
 app.use("/api/profiles", profileRoutes)
+app.use("/api/shipping", shippingRoutes)
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://bookuser:U8xdJsXMSxePokrL@book-store-cluster.ck1zkmj.mongodb.net/?appName=book-store-cluster");

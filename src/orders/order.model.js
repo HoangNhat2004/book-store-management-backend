@@ -34,6 +34,11 @@ const orderSchema = new mongoose.Schema({
             quantity: { type: Number, required: true, default: 1 }
         }
     ],
+    shippingFee: { // <-- THÊM TRƯỜNG MỚI
+        type: Number,
+        required: true,
+        default: 0
+    },
     totalPrice: {
         type: Number,
         required: true,

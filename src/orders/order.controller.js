@@ -1,7 +1,7 @@
 // backend/src/orders/order.controller.js
 const Order = require("./order.model");
 const Book = require("../books/book.model"); // <-- 1. IMPORT BOOK MODEL
-const mongoose = require('mongoose');
+const mongoose = require('mongoose'); // <-- 2. IMPORT MONGOOSE
 
 // HÀM TẠO ĐƠN HÀNG (ĐÃ SỬA LỖI BẢO MẬT GIÁ)
 const createAOrder = async (req, res) => {
@@ -11,6 +11,9 @@ const createAOrder = async (req, res) => {
 
     if (!frontendItems || frontendItems.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
+    }
+    if (!address) {
+      return res.status(400).json({ message: "Address is required" });
     }
 
     // 2. Lấy ID sản phẩm để tra cứu CSDL
@@ -30,6 +33,7 @@ const createAOrder = async (req, res) => {
     
     let verifiedTotalPrice = 0;
     const verifiedItems = []; // Mảng item đã được xác thực
+    let totalWeight = 0; // Tính tổng cân nặng (cho GHTK)
 
     // 5. Xác thực từng sản phẩm
     for (const item of frontendItems) {
@@ -37,7 +41,7 @@ const createAOrder = async (req, res) => {
 
       // QUAN TRỌNG: Kiểm tra xem sách có tồn tại không (tránh lỗi mua sách đã xóa)
       if (!book) {
-        return res.status(404).json({ message: `Book '${item.productId}' not found or has been removed.` });
+        return res.status(404).json({ message: `Book with ID '${item.productId}' not found or has been removed.` });
       }
 
       // Lấy số lượng
@@ -51,24 +55,41 @@ const createAOrder = async (req, res) => {
         quantity: quantity
       });
 
-      // TÍNH TOÁN tổng tiền trên SERVER
+      // TÍNH TOÁN tổng tiền trên SERVER (USD)
       verifiedTotalPrice += book.newPrice * quantity;
+      
+      // Tính tổng cân nặng (giả định 500g/sách)
+      totalWeight += (500 * quantity); 
     }
 
-    // 6. Tạo đơn hàng mới với dữ liệu đã được XÁC THỰC
+    // 6. TỰ GỌI GHTK ĐỂ LẤY PHÍ SHIP (VND) MỘT CÁCH AN TOÀN
+    // (Chúng ta cần import hàm getGHTKFee từ shipping.controller)
+    const { getGHTKFee } = require('../shipping/shipping.controller');
+    const feeInVND = await getGHTKFee(address, totalWeight);
+    
+    // 7. Quy đổi phí ship về USD (vì CSDL của bạn đang lưu USD)
+    // (Tỷ giá này NÊN được lấy động, nhưng tạm thời hardcode)
+    const EXCHANGE_RATE_USD_TO_VND = 25000;
+    const shippingFeeUSD = feeInVND / EXCHANGE_RATE_USD_TO_VND;
+
+    // 8. TÍNH TỔNG TIỀN CUỐI CÙNG (TRÊN SERVER)
+    const grandTotalPrice = verifiedTotalPrice + shippingFeeUSD;
+
+    // 9. Tạo đơn hàng mới với dữ liệu đã được XÁC THỰC
     const newOrder = new Order({
       name,
       email,
       address,
       phone,
       items: verifiedItems, // <-- Dùng mảng items an toàn
-      totalPrice: verifiedTotalPrice, // <-- Dùng tổng tiền an toàn
+      shippingFee: shippingFeeUSD, // <-- Dùng phí ship an toàn
+      totalPrice: grandTotalPrice, // <-- Dùng tổng tiền an toàn
       status: 'Pending'
     });
 
     const savedOrder = await newOrder.save();
     
-    // 7. Trả về đơn hàng vừa tạo (với tổng tiền chính xác)
+    // 10. Trả về đơn hàng vừa tạo (với tổng tiền chính xác)
     res.status(201).json(savedOrder);
 
   } catch (error) {
@@ -93,7 +114,7 @@ const getOrderByEmail = async (req, res) => {
   }
 };
 
-// THÊM: LẤY TẤT CẢ ĐƠN HÀNG (ADMIN)
+// LẤY TẤT CẢ ĐƠN HÀNG (ADMIN)
 const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
@@ -106,5 +127,5 @@ const getAllOrders = async (req, res) => {
 module.exports = {
   createAOrder,
   getOrderByEmail,
-  getAllOrders, // XUẤT RA
+  getAllOrders, 
 };
