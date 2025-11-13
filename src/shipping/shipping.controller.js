@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-// --- THÔNG TIN CẤU HÌNH GHTK (HARDCODED) ---
-const GHTK_TOKEN = "336lDaYNGTpQVfLavEmacVpq3ScskF05xxb07kO";
+// --- THÔNG TIN CẤU HÌNH GHTK (ĐÃ SỬA TOKEN) ---
+const GHTK_TOKEN = "336lGYNGTsQyVFLavEmacVpq3ScskF05xxob07kO"; // <-- TOKEN ĐÚNG TỪ ẢNH
 const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
 // --- KẾT THÚC CẤU HÌNH ---
 
@@ -14,20 +14,18 @@ const GHTK_URL = "https://services-staging.ghtklab.com/services/shipment/fee";
 async function getGHTKFee(address, weight = 500) { // Giả định 1 cuốn sách nặng 500g
     if (!GHTK_TOKEN) {
         console.warn("GHTK_TOKEN is not set. Returning 0 fee.");
-        return 0; // Không có token, trả về 0
+        return 0; 
     }
 
-    // --- THAY ĐỔI ĐỊA CHỈ KHO HÀNG TẠI ĐÂY ---
     const payload = {
-        "pick_province": "Thành phố Hồ Chí Minh", // <-- ĐÃ SỬA
-        "pick_district": "Quận 1", // <-- ĐÃ SỬA (Giả định, bạn có thể đổi)
+        "pick_province": "Thành phố Hồ Chí Minh", 
+        "pick_district": "Quận 1", 
         "province": address.state || address.country, // Tỉnh/TP người nhận
         "district": address.city, // Quận/Huyện người nhận
         "address": address.address || address.city,
         "weight": weight,
-        "transport": "road" // Giao đường bộ
+        "transport": "road" 
     };
-    // --- KẾT THÚC THAY ĐỔI ---
 
     try {
         const response = await axios.post(GHTK_URL, payload, {
@@ -39,6 +37,7 @@ async function getGHTKFee(address, weight = 500) { // Giả định 1 cuốn sá
         }
         return 0; 
     } catch (error) {
+        // Log lỗi thật từ GHTK
         console.error("GHTK API Error:", error.response?.data || error.message);
         return 0; 
     }
