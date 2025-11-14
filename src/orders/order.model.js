@@ -10,12 +10,16 @@ const orderSchema = new mongoose.Schema({
         required: true,
     },
     address: {
-        city: {
+        address: { // <-- 1. THÊM DÒNG NÀY (ĐỊA CHỈ ĐƯỜNG PHỐ)
+            type: String,
+            required: true,
+        },
+        city: { // (Quận/Huyện)
             type: String,
             required: true,
         },
         country: String,
-        state: String,
+        state: String, // (Tỉnh/Thành phố)
         zipcode: String,
     },
     phone: {
