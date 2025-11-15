@@ -11,28 +11,26 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6Ik
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-    // --- SỬA LẠI: Chỉ nhận username, password ---
-    const { username, password, role } = req.body;
+    const { username, email, password, role } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+    // --- SỬA LẠI: Yêu cầu cả 3 trường ---
+    if (!username || !email || !password) {
+        return res.status(400).json({ message: "Username, email, and password are required" });
     }
 
     try {
-        // --- SỬA LẠI LOGIC KIỂM TRA ---
-        // Chỉ kiểm tra trùng lặp USERNAME
-        const existingUser = await User.findOne({ username: username });
-        
+        // --- SỬA LẠI: Logic kiểm tra (email sẽ không bao giờ là undefined) ---
+        const existingUser = await User.findOne({
+            $or: [{ username }, { email }]
+        });
         if (existingUser) {
-            // Chỉ báo lỗi username
-            return res.status(400).json({ message: "Username already exists" });
+            return res.status(400).json({ message: "Username or email already exists" });
         }
-        // --- KẾT THÚC SỬA ---
 
         const newUser = new User({
             username,
-            email: null, // Luôn gán email là null khi đăng ký
-            password, // model sẽ tự hash
+            email: email, // <-- Đã có email
+            password,
             role: (role === "admin" ? "admin" : "user")
         });
 
@@ -44,15 +42,12 @@ router.post("/register", async (req, res) => {
         });
     } catch (error) {
         console.error("Register error:", error);
-        // Bắt lỗi validation (ví dụ: nếu username "unique" bị vi phạm)
-        if (error.name === 'ValidationError' || error.code === 11000) {
-             return res.status(400).json({ message: "Username already exists." });
-        }
         res.status(500).json({ message: "Server error" });
     }
 });
 
 // POST /api/auth/login
+// ... (Logic /login của bạn đã đúng, giữ nguyên) ...
 router.post("/login", async (req, res) => {
     const { identifier, password } = req.body;
 
@@ -75,7 +70,7 @@ router.post("/login", async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user._id, username: user.username, role: user.role },
+            { id: user._id, username: user.username, role: user.role, email: user.email }, // Thêm email vào token
             JWT_SECRET,
             { expiresIn: "7d" }
         );
@@ -86,7 +81,7 @@ router.post("/login", async (req, res) => {
             user: {
                 username: user.username,
                 email: user.email,
-                role: user.role  // QUAN TRỌNG: TRẢ VỀ role
+                role: user.role
             }
         });
     } catch (error) {
@@ -95,24 +90,20 @@ router.post("/login", async (req, res) => {
     }
 });
 
+
 // --- THÊM ROUTE MỚI CHO ADMIN LOGIN ---
+// ... (Logic /admin-login của bạn đã đúng, giữ nguyên) ...
 router.post("/admin-login", async (req, res) => {
     const { username, password } = req.body;
-
-    // 1. Kiểm tra thông tin đăng nhập trên SERVER
-    // (Trong dự án thật, "admin" và "admin123" nên được lưu trong .env)
     if (username !== "admin" || password !== "admin123") {
       return res.status(401).json({ message: "Invalid username or password" });
     }
-
-    // 2. Nếu đúng, tạo token admin
     try {
         const token = jwt.sign(
-            { id: 'admin_user', username: 'admin', role: 'admin', admin: true }, // 'admin: true' là quan trọng
+            { id: 'admin_user', username: 'admin', role: 'admin', admin: true }, 
             JWT_SECRET,
             { expiresIn: "7d" }
         );
-
         res.status(200).json({
             message: "Admin login successful",
             token,
