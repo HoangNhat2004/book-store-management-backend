@@ -10,9 +10,9 @@ const userSchema =  new mongoose.Schema({
     // --- THÊM KHỐI NÀY ---
     email: {
         type: String,
-        required: true,
+        required: false, // <-- SỬA TỪ true THÀNH false
         unique: true,
-        sparse: true // Cho phép nhiều giá trị null, nhưng chỉ một email duy nhất
+        sparse: true 
     },
     // --- KẾT THÚC THÊM ---
     password: {

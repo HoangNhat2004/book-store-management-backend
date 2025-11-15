@@ -11,23 +11,27 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6Ik
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-    const { username, email, password, role } = req.body;
+    // --- SỬA LẠI: Chỉ nhận username, password ---
+    const { username, password, role } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ message: "Username and password are required" });
     }
 
     try {
-        const existingUser = await User.findOne({
-            $or: [{ username }, { email }]
-        });
+        // --- SỬA LẠI LOGIC KIỂM TRA ---
+        // Chỉ kiểm tra trùng lặp USERNAME
+        const existingUser = await User.findOne({ username: username });
+        
         if (existingUser) {
-            return res.status(400).json({ message: "Username or email already exists" });
+            // Chỉ báo lỗi username
+            return res.status(400).json({ message: "Username already exists" });
         }
+        // --- KẾT THÚC SỬA ---
 
         const newUser = new User({
             username,
-            email: email || null,
+            email: null, // Luôn gán email là null khi đăng ký
             password, // model sẽ tự hash
             role: (role === "admin" ? "admin" : "user")
         });
@@ -40,6 +44,10 @@ router.post("/register", async (req, res) => {
         });
     } catch (error) {
         console.error("Register error:", error);
+        // Bắt lỗi validation (ví dụ: nếu username "unique" bị vi phạm)
+        if (error.name === 'ValidationError' || error.code === 11000) {
+             return res.status(400).json({ message: "Username already exists." });
+        }
         res.status(500).json({ message: "Server error" });
     }
 });
