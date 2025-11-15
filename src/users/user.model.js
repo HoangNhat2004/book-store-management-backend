@@ -7,12 +7,14 @@ const userSchema =  new mongoose.Schema({
         required: true,
         unique: true
     },
+    // --- THÊM KHỐI NÀY ---
     email: {
         type: String,
         required: true,
         unique: true,
         sparse: true // Cho phép nhiều giá trị null, nhưng chỉ một email duy nhất
     },
+    // --- KẾT THÚC THÊM ---
     password: {
         type: String,
         required: true
@@ -21,7 +23,7 @@ const userSchema =  new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         required: true,
-        default: 'user'
+        default: 'user' // Thêm default
     }
 })
 
