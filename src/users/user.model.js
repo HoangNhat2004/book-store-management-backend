@@ -7,6 +7,12 @@ const userSchema =  new mongoose.Schema({
         required: true,
         unique: true
     },
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        sparse: true // Cho phép nhiều giá trị null, nhưng chỉ một email duy nhất
+    },
     password: {
         type: String,
         required: true
@@ -14,7 +20,8 @@ const userSchema =  new mongoose.Schema({
     role: {
         type: String,
         enum: ['user', 'admin'],
-        required: true
+        required: true,
+        default: 'user'
     }
 })
 
