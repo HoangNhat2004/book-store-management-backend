@@ -6,7 +6,10 @@ const router = express.Router();
 
 
 // --- BỘ LỌC ĐƠN HÀNG HỢP LỆ ---
-const validOrderFilter = { items: { $exists: true, $ne: [] } };
+const validOrderFilter = { 
+    items: { $exists: true, $ne: [] },
+    status: { $ne: 'Cancelled' } // <-- THÊM ĐIỀU KIỆN LỌC
+};
 // --- KẾT THÚC BỘ LỌC ---
 
 
@@ -54,32 +57,38 @@ router.get("/", async (req, res) => {
 
         // --- 7. THÊM MỚI: TOP USERS BY AVERAGE ORDER ---
         const topUsers = await Order.aggregate([
-            { $match: validOrderFilter },
+            // BƯỚC 1: Lọc *chỉ* các đơn hàng đã "Delivered"
+            { 
+                $match: { 
+                    status: 'Delivered',
+                    items: { $exists: true, $ne: [] } 
+                } 
+            },
+            // BƯỚC 2: Nhóm theo email khách hàng
             {
                 $group: {
-                    _id: "$email", // Nhóm theo email khách hàng
-                    name: { $first: "$name" }, // Lấy tên từ đơn hàng đầu tiên
+                    _id: "$email", 
+                    name: { $first: "$name" }, 
                     averageOrderValue: { $avg: "$totalPrice" } // Tính giá trị trung bình
                 }
             },
-            // --- THÊM BƯỚC $lookup NÀY ---
+            // BƯỚC 3: Lấy thông tin profile (ảnh)
             {
                 $lookup: {
-                    from: 'profiles', // Tên collection 'profiles' trong MongoDB
-                    localField: '_id', // Trường email từ bước $group ở trên
-                    foreignField: 'email', // Trường email trong collection 'profiles'
-                    as: 'userProfile' // Tên mảng kết quả
+                    from: 'profiles', 
+                    localField: '_id', 
+                    foreignField: 'email', 
+                    as: 'userProfile' 
                 }
             },
-            { $sort: { averageOrderValue: -1 } }, // Sắp xếp giảm dần
-            { $limit: 8 }, // Lấy 8 người dùng hàng đầu
-            // --- THÊM BƯỚC $project ĐỂ LÀM SẠCH DỮ LIỆU ---
+            { $sort: { averageOrderValue: -1 } }, 
+            { $limit: 8 }, 
+            // BƯỚC 4: Làm sạch dữ liệu
             {
                 $project: {
-                    _id: 1, // Giữ lại email
-                    name: 1, // Giữ lại tên
-                    averageOrderValue: 1, // Giữ lại giá trị TB
-                    // Lấy photoURL từ mảng userProfile (nếu có)
+                    _id: 1, 
+                    name: 1, 
+                    averageOrderValue: 1, 
                     photoURL: { $arrayElemAt: ["$userProfile.photoURL", 0] }
                 }
             }
