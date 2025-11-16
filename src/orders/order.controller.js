@@ -1,10 +1,11 @@
-// backend/src/orders/order.controller.js
+// hoangnhat2004/book-store-management-backend/book-store-management-backend-b65cc36d05661fcf23898464f45f3f2fa510ea65/src/orders/order.controller.js
 const Order = require("./order.model");
-const Book = require("../books/book.model"); // <-- 1. IMPORT BOOK MODEL
-const mongoose = require('mongoose'); // <-- 2. IMPORT MONGOOSE
+const Book = require("../books/book.model"); 
+const mongoose = require('mongoose'); 
 
-// HÀM TẠO ĐƠN HÀNG (ĐÃ SỬA LỖI BẢO MẬT GIÁ)
+// ... (Hàm createAOrder và getOrderByEmail giữ nguyên) ...
 const createAOrder = async (req, res) => {
+  // ... (Nội dung hàm giữ nguyên) ...
   try {
     // 1. Lấy dữ liệu tối thiểu từ frontend
     const { name, email, address, phone, items: frontendItems } = req.body;
@@ -99,6 +100,7 @@ const createAOrder = async (req, res) => {
 };
 
 const getOrderByEmail = async (req, res) => {
+  // ... (Nội dung hàm giữ nguyên) ...
   try {
     const { email } = req.params;
     const userEmail = req.user.email;
@@ -120,8 +122,8 @@ const getOrderByEmail = async (req, res) => {
   }
 };
 
-// LẤY TẤT CẢ ĐƠN HÀNG (ADMIN)
 const getAllOrders = async (req, res) => {
+  // ... (Nội dung hàm giữ nguyên) ...
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.status(200).json(orders);
@@ -130,8 +132,47 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+// --- BẮT ĐẦU THÊM HÀM MỚI ---
+/**
+ * Được gọi bởi frontend KHI thanh toán VNPay thành công.
+ * Đây là một cơ chế dự phòng (backup) cho IPN.
+ */
+const confirmOrderPayment = async (req, res) => {
+  try {
+    const { id } = req.params; // Lấy Order ID
+    const userEmail = req.user.email; // Lấy email từ token
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Bảo mật: Đảm bảo user này sở hữu đơn hàng
+    if (order.email !== userEmail) {
+      return res.status(403).json({ message: "Forbidden: You do not own this order." });
+    }
+
+    // Chỉ cập nhật nếu đơn hàng đang "Pending"
+    // (Tránh trường hợp IPN đã chạy trước)
+    if (order.status === 'Pending') {
+      order.status = 'Processing'; // Cập nhật trạng thái
+      await order.save();
+    }
+    
+    res.status(200).json({ message: "Order payment confirmed", order });
+
+  } catch (error) {
+    console.error("Error confirming payment:", error);
+    res.status(500).json({ message: "Failed to confirm payment" });
+  }
+};
+// --- KẾT THÚC THÊM HÀM MỚI ---
+
+
 module.exports = {
   createAOrder,
   getOrderByEmail,
   getAllOrders, 
+  confirmOrderPayment // <-- Xuất hàm mới
 };
