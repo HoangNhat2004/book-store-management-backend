@@ -5,6 +5,11 @@ const bookSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    author: {
+        type: String,
+        required: false, // (Bạn có thể đặt là true nếu muốn nó bắt buộc)
+        default: 'N/A'  // (Hoặc đặt mặc định)
+    },
     description:  {
         type: String,
         required: true,
