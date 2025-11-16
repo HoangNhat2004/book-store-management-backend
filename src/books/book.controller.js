@@ -1,4 +1,5 @@
 const Book = require("./book.model");
+const Order = require("../orders/order.model");
 
 const postABook = async (req, res) => {
     try {
@@ -14,8 +15,38 @@ const postABook = async (req, res) => {
 // get all books
 const getAllBooks =  async (req, res) => {
     try {
-        const books = await Book.find().sort({ createdAt: -1});
-        res.status(200).send(books)
+        // a. Lấy số lượng bán được từ collection 'Orders'
+        // (Chỉ tính các đơn hàng không bị "Cancelled")
+        const salesData = await Order.aggregate([
+            { $match: { status: { $ne: 'Cancelled' } } }, // Lọc bỏ đơn đã hủy
+            { $unwind: "$items" }, // Tách các item trong mỗi order
+            {
+                $group: {
+                    _id: "$items.productId", // Nhóm theo ID sách
+                    totalSold: { $sum: "$items.quantity" } // Tính tổng số lượng
+                }
+            }
+        ]);
+
+        // b. Chuyển salesData thành một Map để tra cứu nhanh
+        // (salesMap sẽ có dạng: { 'productId1': 10, 'productId2': 5 })
+        const salesMap = salesData.reduce((map, item) => {
+            if (item._id) { // Đảm bảo _id không null
+                 map[item._id.toString()] = item.totalSold;
+            }
+            return map;
+        }, {});
+
+        // c. Lấy tất cả sách (dùng .lean() để có object JS thuần, nhanh hơn)
+        const books = await Book.find().sort({ createdAt: -1}).lean(); 
+
+        // d. Map qua sách và thêm trường 'totalSold'
+        const booksWithSales = books.map(book => ({
+            ...book,
+            totalSold: salesMap[book._id.toString()] || 0 // Gán số lượng đã bán, hoặc 0
+        }));
+
+        res.status(200).send(booksWithSales); // Gửi dữ liệu đã gộp
         
     } catch (error) {
         console.error("Error fetching books", error);
