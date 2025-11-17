@@ -4,6 +4,7 @@ const Order = require('../orders/order.model');
 const Book = require('../books/book.model');
 const router = express.Router();
 
+const verifyAdminToken = require('../middleware/verifyAdminToken');
 
 // --- BỘ LỌC ĐƠN HÀNG HỢP LỆ ---
 const validOrderFilter = { 
@@ -14,7 +15,7 @@ const validOrderFilter = {
 
 
 // Function to calculate admin stats
-router.get("/", async (req, res) => {
+router.get("/", verifyAdminToken, async (req, res) => {
     try {
         // 1. Total number of orders
         const totalOrders = await Order.countDocuments(validOrderFilter);
