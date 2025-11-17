@@ -1,4 +1,3 @@
-src/orders/order.controller.js
 const Order = require("./order.model");
 const Book = require("../books/book.model");
 const mongoose = require('mongoose');
@@ -76,7 +75,7 @@ const createAOrder = async (req, res) => {
             email,
             address, // Lưu toàn bộ object address (gồm cả ID và text)
             phone,
-items: verifiedItems,
+            items: verifiedItems,
             shippingFee: shippingFeeUSD,
             totalPrice: grandTotalPrice,
             status: 'Pending'
@@ -98,6 +97,7 @@ const getOrderByEmail = async (req, res) => {
     try {
         const { email } = req.params;
         // Bỏ qua xác thực req.user.email nếu không dùng token cho route này
+        // (Lưu ý: Dòng dưới này đã bị xóa xác thực token, bạn nên thêm lại nếu cần)
         const orders = await Order.find({ email })
             .sort({ createdAt: -1 });
         
