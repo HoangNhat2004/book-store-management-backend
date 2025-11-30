@@ -1,39 +1,50 @@
+// src/users/user.model.js
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt');
 
-const userSchema =  new mongoose.Schema({
+const userSchema = new mongoose.Schema({
     username: {
         type: String,
         required: true,
         unique: true
     },
-    // --- THÊM KHỐI NÀY ---
     email: {
         type: String,
-        required: false, // <-- SỬA TỪ true THÀNH false
+        required: false,
         unique: true,
-        sparse: true 
+        sparse: true
     },
-    // --- KẾT THÚC THÊM ---
     password: {
         type: String,
         required: true
     },
     role: {
         type: String,
-        enum: ['user', 'admin'],
+        enum: ['user', 'admin', 'employee'], // <-- THÊM 'employee'
         required: true,
-        default: 'user' // Thêm default
+        default: 'user'
+    },
+    // --- THÊM ĐỊA CHỈ MẶC ĐỊNH ---
+    defaultAddress: {
+        address: String,
+        city: String,     // Lưu tên Tỉnh/TP
+        district: String, // Lưu tên Quận/Huyện
+        ward: String,     // Lưu tên Phường/Xã
+        
+        // Lưu ID để tính phí ship GHN
+        province_id: Number,
+        district_id: Number,
+        ward_code: String,
+        
+        phone: String
     }
-})
+}, { timestamps: true })
 
-userSchema.pre('save', async function( next) {
-    if(!this.isModified('password')) return next();
+userSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 10);
     next();
-}
-)
+})
 
-const User =  mongoose.model('User', userSchema);
-
+const User = mongoose.model('User', userSchema);
 module.exports = User;

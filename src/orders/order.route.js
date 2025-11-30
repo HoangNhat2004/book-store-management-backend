@@ -13,6 +13,8 @@ const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
 
 const router = express.Router();
 
+const verifyStaffToken = require('../middleware/verifyStaffToken');
+
 // Tạo đơn
 router.post("/", verifyFirebaseToken, createAOrder);
 
@@ -20,7 +22,7 @@ router.post("/", verifyFirebaseToken, createAOrder);
 router.get("/email/:email", verifyFirebaseToken, getOrderByEmail);
 
 // LẤY TẤT CẢ (ADMIN)
-router.get("/", verifyAdminToken, getAllOrders);
+router.get("/", verifyStaffToken, getAllOrders);
 
 // --- 2. THÊM ROUTE MỚI ---
 // Xác nhận thanh toán (sau khi VNPay return, dự phòng cho IPN)
@@ -28,7 +30,7 @@ router.post("/:id/confirm-payment", verifyFirebaseToken, confirmOrderPayment);
 // --- KẾT THÚC THÊM ---
 
 // CẬP NHẬT STATUS (ADMIN)
-router.put("/:id/status", verifyAdminToken, async (req, res) => {
+router.put("/:id/status", verifyStaffToken, async (req, res) => {
   // ... (Nội dung hàm giữ nguyên) ...
   try {
     const { id } = req.params;

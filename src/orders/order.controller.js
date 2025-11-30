@@ -69,6 +69,19 @@ const createAOrder = async (req, res) => {
         // 8. Tính tổng tiền (giữ nguyên)
         const grandTotalPrice = verifiedTotalPrice + shippingFeeUSD;
 
+        for (const item of frontendItems) {
+            const book = await Book.findById(item.productId);
+            if (!book) throw new Error("Book not found");
+            
+            if (book.stock < (item.quantity || 1)) {
+                return res.status(400).json({ message: `Sách "${book.title}" chỉ còn ${book.stock} cuốn.` });
+            }
+            
+            // Trừ tồn kho
+            book.stock -= (item.quantity || 1);
+            await book.save();
+        }
+
         // 9. Tạo đơn hàng (giữ nguyên, vì 'address' là object nên sẽ lưu cả ID)
         const newOrder = new Order({
             name,

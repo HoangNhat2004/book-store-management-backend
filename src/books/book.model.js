@@ -1,4 +1,5 @@
-const mongoose =  require('mongoose');
+// src/books/book.model.js
+const mongoose = require('mongoose');
 
 const bookSchema = new mongoose.Schema({
     title: {
@@ -7,14 +8,13 @@ const bookSchema = new mongoose.Schema({
     },
     author: {
         type: String,
-        required: false, // (Bạn có thể đặt là true nếu muốn nó bắt buộc)
-        default: 'N/A'  // (Hoặc đặt mặc định)
+        required: true, // Thầy yêu cầu thêm tác giả
     },
-    description:  {
+    description: {
         type: String,
         required: true,
     },
-    category:  {
+    category: {
         type: String,
         required: true,
     },
@@ -35,14 +35,20 @@ const bookSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
+    // --- THÊM STOCK (TỒN KHO) ---
+    stock: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0
+    },
     createdAt: {
         type: Date,
         default: Date.now,
     }
-  }, {
+}, {
     timestamps: true,
-  });
+});
 
-  const Book = mongoose.model('Book', bookSchema);
-
-  module.exports = Book;
+const Book = mongoose.model('Book', bookSchema);
+module.exports = Book;

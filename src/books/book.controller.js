@@ -1,5 +1,6 @@
 const Book = require("./book.model");
 const Order = require("../orders/order.model");
+const PriceHistory = require("./priceHistory.model");
 
 const postABook = async (req, res) => {
     try {
@@ -73,18 +74,34 @@ const getSingleBook = async (req, res) => {
 // update book data
 const UpdateBook = async (req, res) => {
     try {
-        const {id} = req.params;
-        const updatedBook =  await Book.findByIdAndUpdate(id, req.body, {new: true});
-        if(!updatedBook) {
-            res.status(404).send({message: "Book is not Found!"})
+        const { id } = req.params;
+        const updates = req.body;
+        
+        // 1. Tìm sách cũ
+        const oldBook = await Book.findById(id);
+        if (!oldBook) return res.status(404).send({ message: "Book not Found!" });
+
+        // 2. Nếu giá thay đổi, lưu vào lịch sử
+        if (updates.newPrice && updates.newPrice !== oldBook.newPrice) {
+            await PriceHistory.create({
+                bookId: id,
+                oldPrice: oldBook.newPrice,
+                newPrice: updates.newPrice,
+                changedBy: req.user.id, // Lấy từ token
+                note: updates.note || "Price update" // Frontend có thể gửi kèm note
+            });
         }
+
+        // 3. Cập nhật sách
+        const updatedBook = await Book.findByIdAndUpdate(id, updates, { new: true });
+        
         res.status(200).send({
             message: "Book updated successfully",
             book: updatedBook
         })
     } catch (error) {
         console.error("Error updating a book", error);
-        res.status(500).send({message: "Failed to update a book"})
+        res.status(500).send({ message: "Failed to update a book" })
     }
 }
 
