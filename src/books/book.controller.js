@@ -1,3 +1,4 @@
+// src/books/book.controller.js
 const Book = require("./book.model");
 const Order = require("../orders/order.model");
 const PriceHistory = require("./priceHistory.model");
@@ -13,41 +14,39 @@ const postABook = async (req, res) => {
     }
 }
 
-// get all books
-const getAllBooks =  async (req, res) => {
+// get all books (Có tính doanh số + Populate Category)
+const getAllBooks = async (req, res) => {
     try {
-        // a. Lấy số lượng bán được từ collection 'Orders'
-        // (Chỉ tính các đơn hàng không bị "Cancelled")
+        // 1. Tính số lượng đã bán
         const salesData = await Order.aggregate([
-            { $match: { status: { $ne: 'Cancelled' } } }, // Lọc bỏ đơn đã hủy
-            { $unwind: "$items" }, // Tách các item trong mỗi order
+            { $match: { status: { $ne: 'Cancelled' } } }, 
+            { $unwind: "$items" }, 
             {
                 $group: {
-                    _id: "$items.productId", // Nhóm theo ID sách
-                    totalSold: { $sum: "$items.quantity" } // Tính tổng số lượng
+                    _id: "$items.productId", 
+                    totalSold: { $sum: "$items.quantity" } 
                 }
             }
         ]);
 
-        // b. Chuyển salesData thành một Map để tra cứu nhanh
-        // (salesMap sẽ có dạng: { 'productId1': 10, 'productId2': 5 })
         const salesMap = salesData.reduce((map, item) => {
-            if (item._id) { // Đảm bảo _id không null
+            if (item._id) { 
                  map[item._id.toString()] = item.totalSold;
             }
             return map;
         }, {});
 
-        // c. Lấy tất cả sách (dùng .lean() để có object JS thuần, nhanh hơn)
-        const books = await Book.find().sort({ createdAt: -1}).lean(); 
+        // 2. Lấy sách & Populate Category
+        // .populate('category') giúp hiển thị tên danh mục thay vì ID
+        const books = await Book.find().populate('category').sort({ createdAt: -1 }).lean(); 
 
-        // d. Map qua sách và thêm trường 'totalSold'
+        // 3. Gộp dữ liệu
         const booksWithSales = books.map(book => ({
             ...book,
-            totalSold: salesMap[book._id.toString()] || 0 // Gán số lượng đã bán, hoặc 0
+            totalSold: salesMap[book._id.toString()] || 0 
         }));
 
-        res.status(200).send(booksWithSales); // Gửi dữ liệu đã gộp
+        res.status(200).send(booksWithSales); 
         
     } catch (error) {
         console.error("Error fetching books", error);
@@ -58,7 +57,8 @@ const getAllBooks =  async (req, res) => {
 const getSingleBook = async (req, res) => {
     try {
         const {id} = req.params;
-        const book =  await Book.findById(id);
+        // Populate category cho trang chi tiết
+        const book = await Book.findById(id).populate('category');
         if(!book){
             res.status(404).send({message: "Book not Found!"})
         }
@@ -71,44 +71,41 @@ const getSingleBook = async (req, res) => {
 
 }
 
-// update book data
+// Update Book (Có lưu lịch sử giá)
 const UpdateBook = async (req, res) => {
     try {
-        const { id } = req.params;
+        const {id} = req.params;
         const updates = req.body;
-        
-        // 1. Tìm sách cũ
         const oldBook = await Book.findById(id);
-        if (!oldBook) return res.status(404).send({ message: "Book not Found!" });
+        if(!oldBook) return res.status(404).send({message: "Book not Found!"});
 
-        // 2. Nếu giá thay đổi, lưu vào lịch sử
-        if (updates.newPrice && updates.newPrice !== oldBook.newPrice) {
+        const newPriceVal = Number(updates.newPrice);
+        const oldPriceVal = Number(oldBook.newPrice);
+
+        if (!isNaN(newPriceVal) && newPriceVal !== oldPriceVal) {
+            const editorId = req.user ? req.user.id : null; 
             await PriceHistory.create({
                 bookId: id,
-                oldPrice: oldBook.newPrice,
-                newPrice: updates.newPrice,
-                changedBy: req.user.id, // Lấy từ token
-                note: updates.note || "Price update" // Frontend có thể gửi kèm note
+                oldPrice: oldPriceVal,
+                newPrice: newPriceVal,
+                updatedBy: editorId, 
+                note: updates.note || `Price update: ${oldPriceVal} -> ${newPriceVal}`
             });
+            console.log(`✅ Saved history: ${oldPriceVal} -> ${newPriceVal} for Book ${id}`);
         }
 
-        // 3. Cập nhật sách
-        const updatedBook = await Book.findByIdAndUpdate(id, updates, { new: true });
-        
-        res.status(200).send({
-            message: "Book updated successfully",
-            book: updatedBook
-        })
+        const updatedBook = await Book.findByIdAndUpdate(id, updates, {new: true});
+        res.status(200).send({ message: "Book updated", book: updatedBook })
     } catch (error) {
-        console.error("Error updating a book", error);
-        res.status(500).send({ message: "Failed to update a book" })
+        console.error("Error updating book", error);
+        res.status(500).send({message: "Failed to update"})
     }
 }
 
 const deleteABook = async (req, res) => {
     try {
         const {id} = req.params;
-        const deletedBook =  await Book.findByIdAndDelete(id);
+        const deletedBook = await Book.findByIdAndDelete(id);
         if(!deletedBook) {
             res.status(404).send({message: "Book is not Found!"})
         }
@@ -122,10 +119,28 @@ const deleteABook = async (req, res) => {
     }
 };
 
+const getPriceHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`📥 Fetching history for Book ID: ${id}`);
+
+        const history = await PriceHistory.find({ bookId: id })
+            .sort({ createdAt: -1 })
+            .populate('updatedBy', 'email username'); 
+            
+        console.log(`📤 Found ${history.length} records`);
+        res.status(200).json(history);
+    } catch (error) {
+        console.error("Error fetching history", error);
+        res.status(500).send({ message: "Failed to fetch price history" });
+    }
+}
+
 module.exports = {
     postABook,
     getAllBooks,
     getSingleBook,
     UpdateBook,
-    deleteABook
+    deleteABook,
+    getPriceHistory
 }

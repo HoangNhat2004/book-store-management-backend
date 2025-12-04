@@ -31,7 +31,6 @@ router.post("/:id/confirm-payment", verifyFirebaseToken, confirmOrderPayment);
 
 // CẬP NHẬT STATUS (ADMIN)
 router.put("/:id/status", verifyStaffToken, async (req, res) => {
-  // ... (Nội dung hàm giữ nguyên) ...
   try {
     const { id } = req.params;
     const { status } = req.body;

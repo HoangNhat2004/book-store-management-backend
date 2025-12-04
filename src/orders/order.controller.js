@@ -1,49 +1,49 @@
+// src/orders/order.controller.js
 const Order = require("./order.model");
 const Book = require("../books/book.model");
+const axios = require('axios'); // <-- Đã thêm axios
 const mongoose = require('mongoose');
-// 1. THAY ĐỔI IMPORT: Từ GHTK sang GHN
-const { getGHNFee } = require('../shipping/shipping.controller');
+const { getGHNFee } = require('../shipping/shipping.controller'); // <-- Import GHN
 
 const createAOrder = async (req, res) => {
     try {
-        // 1. Lấy dữ liệu (giữ nguyên)
         const { name, email, address, phone, items: frontendItems } = req.body;
 
+        // 1. Validate Giỏ hàng
         if (!frontendItems || frontendItems.length === 0) {
             return res.status(400).json({ message: "Cart is empty" });
         }
         
-        // 2. THAY ĐỔI QUAN TRỌNG: Kiểm tra address mới từ GHN
+        // 2. Validate Địa chỉ (Bắt buộc phải có ID để tính ship)
         if (!address || !address.to_district_id || !address.to_ward_code) {
-            return res.status(400).json({ message: "Address (District ID, Ward Code) is required" });
+            return res.status(400).json({ message: "Address (District ID, Ward Code) is required." });
         }
 
-        // 3. Lấy ID sản phẩm (giữ nguyên)
-        const productIds = frontendItems.map(item => {
-            if (!mongoose.Types.ObjectId.isValid(item.productId)) {
-                throw new Error(`Invalid Product ID: ${item.productId}`);
-            }
-            return item.productId;
-        });
-
-        // 4. Lấy thông tin sách (giữ nguyên)
+        // 3. Lấy thông tin sách & Tính toán
+        const productIds = frontendItems.map((item) => item.productId);
         const books = await Book.find({ _id: { $in: productIds } });
         const bookMap = new Map(books.map(book => [book._id.toString(), book]));
-        
+
         let verifiedTotalPrice = 0;
         const verifiedItems = [];
-        let totalWeight = 0; // Tính tổng cân nặng (gram)
+        let totalWeight = 0; // Tổng cân nặng (gram)
 
-        // 5. Xác thực sản phẩm (giữ nguyên)
         for (const item of frontendItems) {
             const book = bookMap.get(item.productId);
-
             if (!book) {
-                return res.status(404).json({ message: `Book with ID '${item.productId}' not found or has been removed.` });
+                return res.status(404).json({ message: `Book not found: ${item.productId}` });
             }
+            
+            // Kiểm tra tồn kho
+            if (book.stock < (item.quantity || 1)) {
+                return res.status(400).json({ message: `Sách "${book.title}" không đủ hàng. (Còn: ${book.stock})` });
+            }
+            
+            // Trừ tồn kho
+            book.stock -= (item.quantity || 1);
+            await book.save();
 
             const quantity = item.quantity || 1;
-            
             verifiedItems.push({
                 productId: book._id,
                 title: book.title,
@@ -52,41 +52,32 @@ const createAOrder = async (req, res) => {
             });
 
             verifiedTotalPrice += book.newPrice * quantity;
-            totalWeight += (500 * quantity); // Giả định 500g/sách
+            totalWeight += (200 * quantity); // Giả định mỗi sách nặng 200g
         }
 
-        // 6. THAY ĐỔI: Gọi hàm getGHNFee với ID và Mã
-        const feeInVND = await getGHNFee(
-            address.to_district_id, 
-            address.to_ward_code, 
-            totalWeight
-        );
-        
-        // 7. Quy đổi phí ship về USD (giữ nguyên)
+        // 4. TÍNH PHÍ SHIP TỪ GHN
+        let feeInVND = 0;
+        try {
+            feeInVND = await getGHNFee(
+                address.to_district_id,
+                address.to_ward_code,
+                totalWeight
+            );
+        } catch (ghnError) {
+            console.error("GHN Error:", ghnError.message);
+            feeInVND = 30000; // Phí mặc định nếu lỗi mạng
+        }
+
+        // 5. Quy đổi phí ship & Tổng tiền
         const EXCHANGE_RATE_USD_TO_VND = 25000;
         const shippingFeeUSD = feeInVND / EXCHANGE_RATE_USD_TO_VND;
-
-        // 8. Tính tổng tiền (giữ nguyên)
         const grandTotalPrice = verifiedTotalPrice + shippingFeeUSD;
 
-        for (const item of frontendItems) {
-            const book = await Book.findById(item.productId);
-            if (!book) throw new Error("Book not found");
-            
-            if (book.stock < (item.quantity || 1)) {
-                return res.status(400).json({ message: `Sách "${book.title}" chỉ còn ${book.stock} cuốn.` });
-            }
-            
-            // Trừ tồn kho
-            book.stock -= (item.quantity || 1);
-            await book.save();
-        }
-
-        // 9. Tạo đơn hàng (giữ nguyên, vì 'address' là object nên sẽ lưu cả ID)
+        // 6. Tạo đơn hàng
         const newOrder = new Order({
             name,
             email,
-            address, // Lưu toàn bộ object address (gồm cả ID và text)
+            address, // Lưu nguyên object address
             phone,
             items: verifiedItems,
             shippingFee: shippingFeeUSD,
@@ -95,32 +86,22 @@ const createAOrder = async (req, res) => {
         });
 
         const savedOrder = await newOrder.save();
-        
-        // 10. Trả về (giữ nguyên)
         res.status(201).json(savedOrder);
 
     } catch (error) {
-        console.error("Error creating order (GHN validation):", error);
-        res.status(500).json({ message: error.message || "Failed to create order" });
+        console.error("Error creating order:", error);
+        res.status(500).json({ message: "Failed to create order on server" });
     }
 };
 
-// ... (Các hàm getOrderByEmail và getAllOrders giữ nguyên) ...
 const getOrderByEmail = async (req, res) => {
     try {
         const { email } = req.params;
-        // Bỏ qua xác thực req.user.email nếu không dùng token cho route này
-        // (Lưu ý: Dòng dưới này đã bị xóa xác thực token, bạn nên thêm lại nếu cần)
-        const orders = await Order.find({ email })
-            .sort({ createdAt: -1 });
-        
-        if (!orders || orders.length === 0) {
-            return res.status(404).json({ message: "No orders found" });
-        }
+        const orders = await Order.find({ email }).sort({ createdAt: -1 });
+        if (!orders) return res.status(404).json({ message: "Order not found" });
         res.status(200).json(orders);
     } catch (error) {
-        console.error("Error fetching user orders:", error);
-        res.status(500).json({ message: "Failed to fetch orders" });
+        res.status(500).json({ message: "Failed to fetch order" });
     }
 };
 
@@ -129,42 +110,28 @@ const getAllOrders = async (req, res) => {
         const orders = await Order.find().sort({ createdAt: -1 });
         res.status(200).json(orders);
     } catch (error) {
-        res.status(500).json({ message: "Failed to fetch orders" });
+        res.status(500).json({ message: "Failed to fetch all orders" });
     }
-};
+}
 
-// Hàm này là của logic VNPay, không liên quan đến GHN, cứ giữ nguyên
 const confirmOrderPayment = async (req, res) => {
     try {
         const { id } = req.params;
-        const userEmail = req.user.email; // Cần verifyToken cho route này
-
-        const order = await Order.findById(id);
-
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        if (order.email !== userEmail) {
-            return res.status(403).json({ message: "Forbidden: You do not own this order." });
-        }
-
-        if (order.status === 'Pending') {
-            order.status = 'Processing';
-            await order.save();
-        }
-        
-        res.status(200).json({ message: "Order payment confirmed", order });
-
+        const updatedOrder = await Order.findByIdAndUpdate(
+            id, 
+            { status: 'Processing' }, 
+            { new: true }
+        );
+        if(!updatedOrder) return res.status(404).json({message: "Order not found"});
+        res.status(200).json(updatedOrder);
     } catch (error) {
-        console.error("Error confirming payment:", error);
         res.status(500).json({ message: "Failed to confirm payment" });
     }
-};
+}
 
 module.exports = {
     createAOrder,
     getOrderByEmail,
-    getAllOrders, 
+    getAllOrders,
     confirmOrderPayment
 };

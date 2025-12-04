@@ -1,44 +1,39 @@
+// src/orders/order.model.js
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: true,
-    },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
     address: {
-        address: { // <-- 1. THÊM DÒNG NÀY (ĐỊA CHỈ ĐƯỜNG PHỐ)
-            type: String,
-            required: true,
-        },
-        city: { // (Quận/Huyện)
-            type: String,
-            required: true,
-        },
+        address: { type: String, required: true },
+        city: { type: String, required: true },
         country: String,
-        state: String, // (Tỉnh/Thành phố)
+        state: String,
         zipcode: String,
+        
+        // --- BỔ SUNG CÁC TRƯỜNG ID QUAN TRỌNG CHO GHN ---
+        province_id: { type: Number },
+        district_id: { type: Number },
+        ward_code: { type: String },
+        // ------------------------------------------------
     },
-    phone: {
-        type: Number,
+    phone: { 
+        type: String, // Nên để String để giữ số 0 ở đầu
         required: true,
     },
     items: [
         {
             productId: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Book', // Vẫn giữ tham chiếu nếu cần
+                ref: 'Book',
                 required: true,
             },
             title: { type: String, required: true },
-            price: { type: Number, required: true }, // Giá tại thời điểm mua
+            price: { type: Number, required: true },
             quantity: { type: Number, required: true, default: 1 }
         }
     ],
-    shippingFee: { // <-- THÊM TRƯỜNG MỚI
+    shippingFee: { 
         type: Number,
         required: true,
         default: 0
@@ -52,11 +47,14 @@ const orderSchema = new mongoose.Schema({
         type: String,
         enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
         default: 'Pending'
+    },
+    ghnOrderCode: { // Mã vận đơn GHN
+        type: String,
+        default: null
     }
 }, {
     timestamps: true,
 })
 
 const Order = mongoose.model('Order', orderSchema);
-
 module.exports = Order;

@@ -4,6 +4,7 @@ const cors = require("cors");
 const jwt = require('jsonwebtoken');
 // Giữ bí mật JWT này
 const JWT_SECRET = process.env.JWT_SECRET_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30";
+const path = require('path');
 
 const mongoose = require("mongoose");
 const port = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposedHeaders: ['Authorization']
 }));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // routes
 const bookRoutes = require('./src/books/book.route');
@@ -35,6 +37,11 @@ const adminRoutes = require("./src/stats/admin.stats")
 const paymentRoutes = require("./src/payment/payment.route") // <-- THÊM MỚI
 const profileRoutes = require("./src/profiles/profile.route")
 const shippingRoutes = require("./src/shipping/shipping.route")
+const bannerRoutes = require('./src/banners/banner.route');
+const uploadRoutes = require('./src/upload/upload.route');
+const settingRoutes = require('./src/settings/setting.route');
+const cartRoutes = require('./src/carts/cart.route');
+const categoryRoutes = require('./src/categories/category.route');
 
 app.use("/api/books", bookRoutes)
 app.use("/api/orders", orderRoutes)
@@ -43,6 +50,11 @@ app.use("/api/admin", adminRoutes)
 app.use("/api/payment", paymentRoutes) // <-- THÊM MỚI
 app.use("/api/profiles", profileRoutes)
 app.use("/api/shipping", shippingRoutes)
+app.use("/api/banner", bannerRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/settings", settingRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/categories", categoryRoutes);
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://bookuser:U8xdJsXMSxePokrL@book-store-cluster.ck1zkmj.mongodb.net/?appName=book-store-cluster");

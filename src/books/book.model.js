@@ -15,7 +15,8 @@ const bookSchema = new mongoose.Schema({
         required: true,
     },
     category: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category', // Liên kết sang bảng Category
         required: true,
     },
     trending: {

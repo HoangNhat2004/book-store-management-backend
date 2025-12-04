@@ -1,4 +1,4 @@
-// src/books/priceHistory.model.js (Tạo file mới)
+// src/books/priceHistory.model.js
 const mongoose = require('mongoose');
 
 const priceHistorySchema = new mongoose.Schema({
@@ -7,15 +7,27 @@ const priceHistorySchema = new mongoose.Schema({
         ref: 'Book',
         required: true
     },
-    oldPrice: Number, // Giá cũ trước khi đổi
-    newPrice: Number, // Giá mới (giá sale)
-    changedBy: {      // Người thực hiện đổi giá (Admin)
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+    oldPrice: {
+        type: Number,
+        required: true
     },
-    note: String // Ví dụ: "Sale đợt 1", "Sale đợt 2"
+    newPrice: {
+        type: Number,
+        required: true
+    },
+    // --- BỔ SUNG TRƯỜNG NÀY ĐỂ SỬA LỖI ---
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Liên kết với bảng User để lấy tên Admin
+    },
+    // -------------------------------------
+    note: String,
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
 }, {
-    timestamps: true // Sẽ có createdAt để biết thời điểm đổi giá
+    timestamps: true 
 });
 
 const PriceHistory = mongoose.model('PriceHistory', priceHistorySchema);

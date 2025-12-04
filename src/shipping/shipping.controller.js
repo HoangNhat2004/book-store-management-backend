@@ -1,143 +1,157 @@
-// hoangnhat2004/book-store-management-backend/book-store-management-backend-b65cc36d05661fcf23898464f45f3f2fa510ea65/src/shipping/shipping.controller.js
-
+// src/shipping/shipping.controller.js
 const axios = require('axios');
+const Order = require('../orders/order.model'); // Import Order Model để cập nhật mã vận đơn
 
-// Đọc Token và ShopID Test từ .env (VẪN CẦN)
-const GHN_TOKEN = "5dc08005-c3c9-11f0-a621-f2a9392e54c8";
-const GHN_SHOP_ID = parseInt("198148", 10);
+// --- CẤU HÌNH GHN ---
+const GHN_TOKEN = "5dc08005-c3c9-11f0-a621-f2a9392e54c8"; // Token của bạn
+const GHN_SHOP_ID = 198148; // ShopID của bạn
+const GHN_API_BASE = "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order";
+const GHN_MASTER_DATA = "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data";
 
-const GHN_FEE_API_URL = "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee";
-const GHN_MASTER_DATA_API_URL = "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data";
+// Địa chỉ kho mặc định (Quận 1)
+const FROM_DISTRICT_ID = 1442; 
+const FROM_WARD_CODE = "20109";
 
-// Đây là địa chỉ kho lấy hàng mặc định (Ví dụ: Quận 1, TP.HCM)
-const FROM_DISTRICT_ID = 1442; // ID Quận 1
-const FROM_WARD_CODE = "20109";  // Mã Phường Bến Nghé
-
-/**
- * Hàm nội bộ để gọi GHN và lấy phí (ĐÃ SỬA)
- * @param {number} to_district_id - ID Quận/Huyện của người nhận
- * @param {string} to_ward_code - Mã Phường/Xã của người nhận
- * @param {number} weight - Cân nặng (gram)
- * @returns {number} Phí vận chuyển (VND)
- */
+// --- 1. HÀM HELPER TÍNH PHÍ (Dùng nội bộ và export) ---
 async function getGHNFee(to_district_id, to_ward_code, weight = 500) {
-    
-    if (!GHN_TOKEN || !GHN_SHOP_ID) {
-        console.error("GHN Token hoặc Shop ID chưa được cấu hình trong .env");
-        throw new Error("Hệ thống vận chuyển chưa sẵn sàng.");
-    }
-    
-    if (!to_district_id || !to_ward_code) {
-        // Nếu frontend chưa kịp nâng cấp, trả về phí tạm
-        console.warn("Thiếu district_id hoặc ward_code, trả về phí tạm 30000 VND");
-        return 30000;
-        // throw new Error("GHN requires District ID and Ward Code.");
-    }
-
-    const payload = {
-        "service_type_id": 2,   // (Số 2 = Giao hàng chuẩn)
-        "to_district_id": parseInt(to_district_id, 10),
-        "to_ward_code": to_ward_code.toString(),
-        "weight": parseInt(weight, 10),
-        
-        // GÁN CỨNG ĐỊA CHỈ LẤY HÀNG
-        "from_district_id": FROM_DISTRICT_ID,
-        "from_ward_code": FROM_WARD_CODE,
-
-        "height": 15, // Giả định
-        "length": 15, // Giả định
-        "width": 15,  // Giả định
-        "insurance_value": 0,
-    };
+    if (!to_district_id || !to_ward_code) return 30000;
 
     try {
-        const response = await axios.post(GHN_FEE_API_URL, payload, {
+        const response = await axios.post(`${GHN_API_BASE}/fee`, {
+            service_type_id: 2, // Giao chuẩn
+            insurance_value: 0,
+            coupon: null,
+            from_district_id: FROM_DISTRICT_ID,
+            to_district_id: parseInt(to_district_id),
+            to_ward_code: String(to_ward_code),
+            height: 15, length: 15, width: 15, weight: parseInt(weight)
+        }, {
+            headers: { 'Token': GHN_TOKEN, 'ShopId': GHN_SHOP_ID }
+        });
+        return response.data.data.total || 0;
+    } catch (error) {
+        console.error("GHN Calc Fee Error:", error.response?.data?.message || error.message);
+        return 30000; // Phí mặc định nếu lỗi
+    }
+}
+
+// --- 2. CÁC API CHO FRONTEND (Địa chỉ & Phí) ---
+
+exports.calculateFee = async (req, res) => {
+    const { to_district_id, to_ward_code, weight } = req.body;
+    try {
+        const fee = await getGHNFee(to_district_id, to_ward_code, weight);
+        res.status(200).json({ shippingFee: fee });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to calculate fee" });
+    }
+};
+
+exports.getProvinces = async (req, res) => {
+    try {
+        const response = await axios.get(`${GHN_MASTER_DATA}/province`, { headers: { 'Token': GHN_TOKEN } });
+        res.status(200).json(response.data);
+    } catch (e) { res.status(500).json({ message: "Error fetching provinces" }); }
+};
+
+exports.getDistricts = async (req, res) => {
+    try {
+        const response = await axios.post(`${GHN_MASTER_DATA}/district`, 
+            { province_id: parseInt(req.body.province_id) }, 
+            { headers: { 'Token': GHN_TOKEN } }
+        );
+        res.status(200).json(response.data);
+    } catch (e) { res.status(500).json({ message: "Error fetching districts" }); }
+};
+
+exports.getWards = async (req, res) => {
+    try {
+        const response = await axios.post(`${GHN_MASTER_DATA}/ward`, 
+            { district_id: parseInt(req.body.district_id) }, 
+            { headers: { 'Token': GHN_TOKEN } }
+        );
+        res.status(200).json(response.data);
+    } catch (e) { res.status(500).json({ message: "Error fetching wards" }); }
+};
+
+// --- SỬA HÀM TẠO ĐƠN SHIP ---
+exports.createShippingOrder = async (req, res) => {
+    try {
+        const { orderId } = req.body;
+        const order = await Order.findById(orderId);
+
+        if (!order) return res.status(404).json({ message: "Order not found" });
+        if (order.ghnOrderCode) return res.status(400).json({ message: "Order already pushed" });
+
+        // 1. Kiểm tra dữ liệu địa chỉ (Quan trọng)
+        if (!order.address.district_id || !order.address.ward_code) {
+            return res.status(400).json({ 
+                message: "Missing Address IDs in Order. Cannot push to GHN.",
+                detail: "Order was created before updating Order Model. Please create a new order."
+            });
+        }
+
+        // 2. Chuẩn hóa số điện thoại
+        let formattedPhone = String(order.phone);
+        // Xóa các ký tự không phải số
+        formattedPhone = formattedPhone.replace(/\D/g, '');
+        // Đảm bảo bắt đầu bằng 0 và đủ 10 số (cơ bản)
+        if (!formattedPhone.startsWith('0')) formattedPhone = '0' + formattedPhone;
+        
+        if (formattedPhone.length < 10) {
+             return res.status(400).json({ message: `Phone number invalid (${formattedPhone}). Must be at least 10 digits.` });
+        }
+
+        // 3. Payload
+        const items = order.items.map(item => ({
+            name: item.title,
+            quantity: item.quantity,
+            price: 0,
+            weight: 200
+        }));
+
+        const payload = {
+            payment_type_id: 1,
+            note: "Call before delivery",
+            required_note: "CHOXEMHANGKHONGTHU",
+            to_name: order.name,
+            to_phone: formattedPhone,
+            to_address: order.address.address,
+            to_ward_code: String(order.address.ward_code),
+            to_district_id: Number(order.address.district_id),
+            weight: 200 * items.length,
+            length: 10, width: 10, height: 10,
+            service_type_id: 2,
+            items: items
+        };
+
+        console.log("Pushing to GHN:", payload);
+
+        const response = await axios.post(`${GHN_API_BASE}/create`, payload, {
             headers: {
                 'Token': GHN_TOKEN,
-                'ShopId': GHN_SHOP_ID, // Vẫn bắt buộc phải có ShopId trong header
+                'ShopId': GHN_SHOP_ID,
                 'Content-Type': 'application/json'
             }
         });
 
-        if (response.data && response.data.data && response.data.data.total) {
-            console.log("GHN Fee Calculated:", response.data.data.total); // Thêm log
-            return response.data.data.total; // Trả về phí (VND)
+        if (response.data.code === 200) {
+            const ghnCode = response.data.data.order_code;
+            order.ghnOrderCode = ghnCode;
+            order.status = 'Shipped';
+            await order.save();
+            res.status(200).json({ message: "Success", ghnCode, order });
+        } else {
+            throw new Error(response.data.message || "GHN Error");
         }
-        
-        console.warn("GHN API OK but no fee found:", response.data);
-        return 0;
 
     } catch (error) {
-        console.error("GHN API Error (calculateFee):", error.response?.data?.message || error.message);
-        // Trả về một mức phí mặc định nếu có lỗi
-        return 30000; 
-    }
-}
-
-// API Endpoint: Tính phí (Frontend gọi vào đây)
-exports.calculateFee = async (req, res) => {
-    const { to_district_id, to_ward_code, weight } = req.body;
-    
-    if (!to_district_id || !to_ward_code) {
-        return res.status(400).json({ message: "District ID and Ward Code are required" });
-    }
-    
-    try {
-        const fee = await getGHNFee(to_district_id, to_ward_code, weight || 500); 
-        res.status(200).json({ shippingFee: fee }); // Trả về phí (VND)
-    } catch (error) {
-        res.status(500).json({ message: error.message || "Failed to calculate fee" });
+        const ghnMsg = error.response?.data?.message || error.message;
+        console.error("GHN Create Error:", ghnMsg);
+        res.status(500).json({ message: "GHN Failed: " + ghnMsg });
     }
 };
 
-// API Endpoint: Lấy Tỉnh/Thành phố
-exports.getProvinces = async (req, res) => {
-    try {
-        const response = await axios.get(`${GHN_MASTER_DATA_API_URL}/province`, {
-            headers: { 'Token': GHN_TOKEN }
-        });
-        res.status(200).json(response.data);
-    } catch (error) {
-        console.error("GHN Error (Provinces):", error.response?.data?.message || error.message);
-        res.status(500).json({ message: "Failed to fetch provinces" });
-    }
-};
-
-// API Endpoint: Lấy Quận/Huyện
-exports.getDistricts = async (req, res) => {
-    const { province_id } = req.body; 
-    if (!province_id) {
-        return res.status(400).json({ message: "Province ID is required" });
-    }
-    try {
-        const response = await axios.post(`${GHN_MASTER_DATA_API_URL}/district`, 
-            { province_id: parseInt(province_id, 10) }, // Đảm bảo province_id là số
-            { headers: { 'Token': GHN_TOKEN } }
-        );
-        res.status(200).json(response.data);
-    } catch (error) {
-        console.error("GHN Error (Districts):", error.response?.data?.message || error.message);
-        res.status(500).json({ message: "Failed to fetch districts" });
-    }
-};
-
-// API Endpoint: Lấy Phường/Xã
-exports.getWards = async (req, res) => {
-    const { district_id } = req.body; 
-    if (!district_id) {
-        return res.status(400).json({ message: "District ID is required" });
-    }
-    try {
-        const response = await axios.post(`${GHN_MASTER_DATA_API_URL}/ward`, 
-            { district_id: parseInt(district_id, 10) }, // Đảm bảo district_id là số
-            { headers: { 'Token': GHN_TOKEN } }
-        );
-        res.status(200).json(response.data);
-    } catch (error) {
-        console.error("GHN Error (Wards):", error.response?.data?.message || error.message);
-        res.status(500).json({ message: "Failed to fetch wards" });
-    }
-};
-
-// Xuất hàm helper để Order Controller có thể dùng
-exports.getGHNFee = getGHNFee;
+// --- QUAN TRỌNG: EXPORT ĐẦY ĐỦ TẤT CẢ HÀM ---
+exports.getGHNFee = getGHNFee; // Export riêng helper
+// (Các hàm exports.abc = ... ở trên đã tự động được export)
