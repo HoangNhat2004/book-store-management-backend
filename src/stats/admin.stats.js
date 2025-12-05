@@ -1,51 +1,26 @@
+// src/stats/admin.stats.js
 const mongoose = require('mongoose');
 const express = require('express');
 const Order = require('../orders/order.model');
 const Book = require('../books/book.model');
+const User = require('../users/user.model'); 
 const router = express.Router();
-
 const verifyAdminToken = require('../middleware/verifyAdminToken');
 
-// --- BỘ LỌC ĐƠN HÀNG HỢP LỆ ---
-const validOrderFilter = { 
-    items: { $exists: true, $ne: [] },
-    status: { $ne: 'Cancelled' } // <-- THÊM ĐIỀU KIỆN LỌC
-};
-// --- KẾT THÚC BỘ LỌC ---
-
-
-// Function to calculate admin stats
 router.get("/", verifyAdminToken, async (req, res) => {
     try {
-        // 1. Total number of orders
-        const totalOrders = await Order.countDocuments(validOrderFilter);
-
-        // 2. Total sales
-        const totalSales = await Order.aggregate([
-            { $match: validOrderFilter }, 
-            {
-                $group: {
-                    _id: null,
-                    totalSales: { $sum: "$totalPrice" },
-                }
-            }
-        ]);
-
-        // 4. Trending books
-        const trendingBooksCount = await Book.aggregate([
-            { $match: { trending: true } },
-            { $count: "trendingBooksCount" }
-        ]);
+        const totalOrders = await Order.countDocuments();
         
-        const trendingBooks = trendingBooksCount.length > 0 ? trendingBooksCount[0].trendingBooksCount : 0;
+        const totalSalesResult = await Order.aggregate([
+            { $group: { _id: null, totalSales: { $sum: "$totalPrice" } } }
+        ]);
+        const totalSales = totalSalesResult.length > 0 ? totalSalesResult[0].totalSales : 0;
 
-        // 5. Total number of books
+        const trendingBooksCount = await Book.countDocuments({ trending: true });
         const totalBooks = await Book.countDocuments();
-
-        // 6. Monthly sales
+        
+        // Doanh thu theo tháng
         const monthlySales = await Order.aggregate([
-            { $match: validOrderFilter }, 
-            // ... (phần còn lại của monthlySales giữ nguyên)
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
@@ -56,24 +31,21 @@ router.get("/", verifyAdminToken, async (req, res) => {
             { $sort: { _id: 1 } }  
         ]);
 
-        // --- 7. THÊM MỚI: TOP USERS BY AVERAGE ORDER ---
+        // --- TÍNH TOÁN TOP USERS (AVG ORDER VALUE) ---
         const topUsers = await Order.aggregate([
-            // BƯỚC 1: Lọc *chỉ* các đơn hàng đã "Delivered"
-            { 
-                $match: { 
-                    status: 'Delivered',
-                    items: { $exists: true, $ne: [] } 
-                } 
-            },
-            // BƯỚC 2: Nhóm theo email khách hàng
+            // 1. Chỉ tính đơn đã giao thành công (Delivered) để chính xác doanh thu
+            { $match: { status: 'Delivered' } }, 
+            // 2. Gom nhóm theo Email
             {
                 $group: {
                     _id: "$email", 
                     name: { $first: "$name" }, 
-                    averageOrderValue: { $avg: "$totalPrice" } // Tính giá trị trung bình
+                    totalOrders: { $sum: 1 },
+                    totalSpent: { $sum: "$totalPrice" },
+                    averageOrderValue: { $avg: "$totalPrice" } 
                 }
             },
-            // BƯỚC 3: Lấy thông tin profile (ảnh)
+            // 3. Lấy thêm avatar từ bảng Profile (nếu có)
             {
                 $lookup: {
                     from: 'profiles', 
@@ -82,28 +54,29 @@ router.get("/", verifyAdminToken, async (req, res) => {
                     as: 'userProfile' 
                 }
             },
+            // 4. Sắp xếp giảm dần theo giá trị trung bình
             { $sort: { averageOrderValue: -1 } }, 
-            { $limit: 8 }, 
-            // BƯỚC 4: Làm sạch dữ liệu
+            { $limit: 5 }, // Lấy Top 5
+            // 5. Format dữ liệu đầu ra
             {
                 $project: {
-                    _id: 1, 
+                    _id: 0, 
+                    email: "$_id",
                     name: 1, 
+                    totalOrders: 1,
                     averageOrderValue: 1, 
                     photoURL: { $arrayElemAt: ["$userProfile.photoURL", 0] }
                 }
             }
         ]);
-        // --- KẾT THÚC THÊM MỚI ---
 
-        // Result summary
         res.status(200).json({  
             totalOrders,
-            totalSales: totalSales[0]?.totalSales || 0,
-            trendingBooks,
+            totalSales,
+            trendingBooks: trendingBooksCount,
             totalBooks,
             monthlySales,
-            topUsers: topUsers // <-- Gửi dữ liệu mới về frontend
+            topUsers // Trả về mảng top users
         });
       
     } catch (error) {

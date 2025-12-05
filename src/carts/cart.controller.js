@@ -1,6 +1,7 @@
 // src/carts/cart.controller.js
 const Cart = require("./cart.model");
 const User = require("../users/user.model");
+const Book = require("../books/book.model");
 
 // 1. Lấy giỏ hàng (ĐÃ SỬA: TỰ ĐỘNG XÓA SÁCH RÁC)
 const getCart = async (req, res) => {
@@ -44,6 +45,10 @@ const addToCart = async (req, res) => {
         const { productId, quantity } = req.body;
         const email = req.user.email;
         
+        // Kiểm tra sách và tồn kho
+        const book = await Book.findById(productId);
+        if (!book) return res.status(404).json({ message: "Book not found" });
+
         let user = await User.findOne({ email });
         if (!user) {
              user = new User({ email, username: email.split('@')[0], password: 'auto_gen_cart', role: 'user' });
@@ -53,15 +58,27 @@ const addToCart = async (req, res) => {
         let cart = await Cart.findOne({ userId: user._id });
 
         if (!cart) {
+            if (quantity > book.stock) {
+                return res.status(400).json({ message: `Only ${book.stock} items left in stock!` });
+            }
             cart = new Cart({
                 userId: user._id,
                 items: [{ productId, quantity }]
             });
         } else {
             const itemIndex = cart.items.findIndex(p => p.productId.toString() === productId);
+
             if (itemIndex > -1) {
-                cart.items[itemIndex].quantity += quantity;
+                const newQty = cart.items[itemIndex].quantity + quantity;
+                // CHẶN NẾU VƯỢT QUÁ STOCK
+                if (newQty > book.stock) {
+                    return res.status(400).json({ message: `Cannot add. You have ${cart.items[itemIndex].quantity}, max is ${book.stock}.` });
+                }
+                cart.items[itemIndex].quantity = newQty;
             } else {
+                if (quantity > book.stock) {
+                    return res.status(400).json({ message: `Only ${book.stock} items left in stock!` });
+                }
                 cart.items.push({ productId, quantity });
             }
         }
