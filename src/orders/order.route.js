@@ -8,7 +8,7 @@ const {
 } = require('./order.controller');
 
 const verifyAdminToken = require('../middleware/verifyAdminToken');
-const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
+const verifyToken = require('../middleware/verifyToken');
 const verifyStaffToken = require('../middleware/verifyStaffToken'); 
 const Order = require('./order.model');
 const Book = require('../books/book.model'); 
@@ -25,10 +25,10 @@ const ALLOWED_TRANSITIONS = {
 };
 // ---------------------------------------------
 
-router.post("/", verifyFirebaseToken, createAOrder);
-router.get("/email/:email", verifyFirebaseToken, getOrderByEmail);
+router.post("/", verifyToken, createAOrder);
+router.get("/email/:email", verifyToken, getOrderByEmail);
 router.get("/", verifyStaffToken, getAllOrders);
-router.post("/:id/confirm-payment", verifyFirebaseToken, confirmOrderPayment);
+router.post("/:id/confirm-payment", verifyToken, confirmOrderPayment);
 
 // CẬP NHẬT TRẠNG THÁI (CÓ RÀNG BUỘC LOGIC)
 router.put("/:id/status", verifyStaffToken, async (req, res) => {

@@ -1,8 +1,28 @@
+// src/middleware/verifyToken.js
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 
-// Key này phải khớp với key trong user.route.js
 const JWT_SECRET = process.env.JWT_SECRET_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30';
+
+// --- THÊM ĐOẠN KHỞI TẠO NÀY VÀO ĐẦU FILE ---
+try {
+    // Kiểm tra nếu Firebase chưa được khởi tạo thì mới khởi tạo
+    if (admin.apps.length === 0) {
+        // Lấy thông tin từ biến môi trường (như file cũ đã làm)
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            console.log("✅ Firebase Admin SDK initialized in verifyToken.");
+        } else {
+            console.warn("⚠️ Warning: FIREBASE_SERVICE_ACCOUNT not found in env.");
+        }
+    }
+} catch (error) {
+    console.error("❌ Firebase Init Error:", error.message);
+}
+// ---------------------------------------------
 
 const verifyToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -12,30 +32,26 @@ const verifyToken = async (req, res, next) => {
         return res.status(401).json({ message: "No token provided" });
     }
 
-    // --- CÁCH 1: Thử mở bằng chìa khóa JWT (Tài khoản thường) ---
+    // --- CÁCH 1: Thử mở bằng chìa khóa JWT (Tài khoản thường / Postman) ---
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        // Nếu thành công -> Đây là user thường
         req.user = decoded; 
-        return next(); // Cho qua ngay
+        return next(); // Thành công -> Cho qua
     } catch (jwtError) {
-        // Nếu lỗi JWT, đừng chặn vội, thử tiếp Cách 2...
+        // Nếu không phải JWT thường, thử tiếp cách 2...
     }
 
     // --- CÁCH 2: Thử mở bằng chìa khóa Firebase (Tài khoản Google) ---
     try {
-        // Kiểm tra xem Firebase đã khởi động chưa
         if (admin.apps.length === 0) {
-             // Nếu chưa init firebase admin thì return lỗi luôn để tránh crash
-             return res.status(403).json({ message: "Invalid Token & Firebase not initialized" });
+             return res.status(403).json({ message: "Firebase not initialized" });
         }
 
         const decodedToken = await admin.auth().verifyIdToken(token);
-        // Nếu thành công -> Đây là user Google
         req.user = decodedToken;
-        return next(); // Cho qua ngay
+        return next(); // Thành công -> Cho qua
     } catch (firebaseError) {
-        // Cả 2 cách đều thất bại -> Token không hợp lệ
+        // Cả 2 cách đều thất bại
         return res.status(403).json({ message: "Invalid or Expired Token!" });
     }
 };
